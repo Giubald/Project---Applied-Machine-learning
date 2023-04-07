@@ -1,0 +1,88 @@
+---
+title: "Project - Practical ML"
+author: "Giulio Ruggeri"
+date: "2023-03-31"
+output: html_document
+---
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) #to avoid error messages in the R
+```
+
+
+# Load the necessary libraries and set the working environment
+
+```{r}
+setwd("~/Learning/2022 - Data Science Course - Cursera/Module 8/Project/Data")
+library(ggplot2)
+library(lattice)
+library(caret)
+library(rattle)
+library(randomForest)
+library(rpart)
+library(dplyr)
+library(corrplot)
+library(rpart.plot)
+
+
+```
+
+## Data Loading and Post-processing
+#In this section, training and test dataset are loaded and the necessary works on the database to make it suitable for futher analysis are done.
+
+
+```{r}
+set.seed(1111) 
+training <- read.csv("pml-training.csv")
+test<- read.csv("pml-testing.csv")
+```
+
+#working on the training data, removing DEV/=!, NA obs. columns and useless columns to make the database smaller
+
+```{r}
+training[training == "#DIV/0!"] <- NA
+training <- training[, colSums(is.na(training)) ==0]
+training   <-training[,-c(1:7)]
+```
+
+#partition of the training dataset, into 70% training and 30% test
+
+```{r}
+indexes <- createDataPartition(y=training$classe, p=.7, list=FALSE)
+training_train <- training[indexes, ]
+training_test<- training[-indexes, ]
+```
+
+##Model Generation: in this part, two models based on the training set are generated, using Random forests and Decision Trees method.
+
+#Random Forest model - Training, prediction and accuracy
+```{r}
+fitControl <- trainControl(method="cv", number=3) #used to tune and make the training process faster
+
+model_rf <- train(classe ~ ., data = training_train, method = "rf",prox=TRUE, trControl = fitControl, tuneLength = 5)
+
+predictions_rf <- predict(model_rf, training_test)
+confusionMatrix(predictions_rf, as.factor(training_test$classe))
+```
+
+## Decision tree model - Chart
+```{r}
+
+model_dt <- rpart(classe ~ ., data=training_train, method="class")
+#fancyRpartPlot(model_dt, cex=0.3, extra=130, under=TRUE)
+```
+
+#Decision tree prediction and accuracy
+```{r}
+predictions_dt <- predict(model_dt, training_test, type="class")
+confusionMatrix(predictions_dt, as.factor(training_test$classe))
+```
+
+Since the accuracy of the Random Forest is higher that the Decision Tree model, the first one is used to predict on the Test data partition:
+
+```{r}
+prediction_official <- predict(model_rf, test)
+prediction_official
+```
+
